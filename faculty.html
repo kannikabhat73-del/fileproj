@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Faculty Reports</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white p-10">
+
+<h2 class="text-3xl font-bold mb-6 text-center">Faculty Reports</h2>
+
+<!-- SEARCH -->
+<input type="text" id="searchInput"
+placeholder="Search file..."
+class="p-2 text-black rounded mb-6 w-full"
+onkeyup="searchFiles()">
+
+<!-- FILES -->
+<div id="fileContainer"></div>
+
+<script>
+
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwHtW1CaIz1DIbaTqgmCNGoWt4hwICHOBki2oyf7BjEFStaE47ZX-ViKPCASAIDcDTMMw/exec";
+
+/* ================= LOAD FILES ================= */
+function loadFiles(){
+
+const container = document.getElementById("fileContainer");
+
+container.innerHTML = `<p class="text-gray-400 text-xl text-center mt-20">Loading...</p>`;
+
+fetch(WEB_APP_URL)
+.then(res => res.json())
+.then(files => {
+
+container.innerHTML = "";
+
+if(files.length === 0){
+container.innerHTML = `<p class="text-gray-400 text-xl text-center mt-20">No file uploaded</p>`;
+return;
+}
+
+/* ===== GROUP FILES ===== */
+let structure = {};
+
+files.forEach(file => {
+
+if(!structure[file.dept]) structure[file.dept] = {};
+if(!structure[file.dept][file.year]) structure[file.dept][file.year] = {};
+if(!structure[file.dept][file.year][file.month]) structure[file.dept][file.year][file.month] = [];
+
+structure[file.dept][file.year][file.month].push(file);
+
+});
+
+/* ===== DISPLAY ===== */
+
+for(let dept in structure){
+
+container.innerHTML += `
+<div class="mt-4 cursor-pointer font-bold text-lg flex items-center gap-2"
+onclick="toggleFolder(this)">
+<span class="text-yellow-400">📁</span> ${dept}
+</div>
+<div class="ml-6 hidden">
+`;
+
+for(let year in structure[dept]){
+
+container.innerHTML += `
+<div class="cursor-pointer font-semibold flex items-center gap-2 mt-2"
+onclick="toggleFolder(this)">
+<span class="text-yellow-400">📁</span> ${year}
+</div>
+<div class="ml-6 hidden">
+`;
+
+for(let month in structure[dept][year]){
+
+container.innerHTML += `
+<div class="cursor-pointer text-gray-300 flex items-center gap-2 mt-2"
+onclick="toggleFolder(this)">
+<span class="text-yellow-400">📁</span> ${month}
+</div>
+<div class="ml-6 hidden">
+`;
+
+structure[dept][year][month].forEach(file => {
+
+container.innerHTML += `
+<div class="bg-white text-black p-2 rounded flex justify-between items-center my-1 fileItem">
+
+<span>
+<span class="text-blue-500">📄</span> ${file.name} 
+<span class="text-sm text-gray-600">${file.date}</span>
+</span>
+
+<div class="space-x-2">
+
+<a href="${file.url}" target="_blank"
+class="bg-blue-500 text-white px-2 py-1 rounded">
+Open
+</a>
+
+<button onclick="renameFile('${file.name}')"
+class="bg-yellow-500 text-white px-2 py-1 rounded">
+Rename
+</button>
+
+<button onclick="deleteFile('${file.name}')"
+class="bg-red-500 text-white px-2 py-1 rounded">
+Delete
+</button>
+
+</div>
+
+</div>
+`;
+
+});
+
+container.innerHTML += `</div>`; // month
+}
+
+container.innerHTML += `</div>`; // year
+}
+
+container.innerHTML += `</div>`; // dept
+}
+
+})
+.catch(err=>{
+console.error(err);
+container.innerHTML = `<p class="text-red-400 text-center">Error loading files</p>`;
+});
+
+}
+
+/* ================= TOGGLE ================= */
+function toggleFolder(element){
+const next = element.nextElementSibling;
+next.classList.toggle("hidden");
+}
+
+/* ================= DELETE ================= */
+function deleteFile(name){
+
+if(!confirm("Are you sure to delete?")) return;
+
+fetch(WEB_APP_URL,{
+method:"POST",
+body:JSON.stringify({
+action:"delete",
+name:name
+})
+})
+.then(res=>res.text())
+.then(msg=>{
+alert(msg || "Moved to Trash ♻️");
+window.location.href = "delete.html";
+})
+.catch(err=>{
+console.error(err);
+alert("Delete failed");
+});
+
+}
+
+/* ================= RENAME ================= */
+function renameFile(oldName){
+
+const newName = prompt("Enter new file name (without .pdf)");
+
+if(!newName) return;
+
+fetch(WEB_APP_URL,{
+method:"POST",
+body:JSON.stringify({
+action:"rename",
+oldName:oldName,
+newName:newName
+})
+})
+.then(res=>res.text())
+.then(msg=>{
+alert(msg || "Renamed Successfully");
+loadFiles();
+})
+.catch(err=>{
+console.error(err);
+alert("Rename failed");
+});
+
+}
+
+/* ================= SEARCH ================= */
+function searchFiles(){
+
+const input = document.getElementById("searchInput").value.toLowerCase();
+const items = document.querySelectorAll(".fileItem");
+
+items.forEach(item=>{
+const text = item.innerText.toLowerCase();
+item.style.display = text.includes(input) ? "flex" : "none";
+});
+
+}
+
+/* ================= INIT ================= */
+window.onload = loadFiles;
+
+</script>
+
+</body>
+</html>
